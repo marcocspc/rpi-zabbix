@@ -33,6 +33,8 @@ if [ ! -f "$_file_marker" ]; then
     )
     ############### END OF CONVERT TABLES CHARSET SCRIPT ##################
 
+    chmod 777 /var/run/zabbix/
+
     service mysql stop
     touch "$_file_marker"    
 fi
