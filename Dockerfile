@@ -1,47 +1,26 @@
 # Pull base image 
-FROM resin/rpi-raspbian:jessie
-MAINTAINER Mitch Roote <mitch@r00t.ca>
+FROM yummygooey/raspbian-buster
+MAINTAINER marcocspc 
 
-# Install dependencies
 RUN apt-get -y update 
-
-RUN apt-get install -y locales dialog
-RUN locale-gen en_US en_US.UTF-8
-RUN dpkg-reconfigure -f noninteractive locales
+RUN apt-get install -y wget
+RUN wget https://repo.zabbix.com/zabbix/5.0/raspbian/pool/main/z/zabbix-release/zabbix-release_5.0-1+buster_all.deb
+RUN dpkg -i zabbix-release_5.0-1+buster_all.deb
+RUN apt-get update
 
 RUN echo mysql-server mysql-server/root_password select zabbix123 | debconf-set-selections
 RUN echo mysql-server mysql-server/root_password_again select zabbix123 | debconf-set-selections
-RUN apt-get install -yV \
-    mysql-server \
-    zabbix-server-mysql \
-    zabbix-frontend-php \
-    zabbix-agent \
-    php5-mysql \
-    monit \
-    --no-install-recommends
 
-COPY ./apache/zabbix.conf /etc/apache2/conf-available/zabbix.conf
-RUN ln -s /etc/apache2/conf-available/zabbix.conf /etc/apache2/conf-enabled/
+RUN apt-get install zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent php -y
 
-COPY ./zabbix/zabbix-server /etc/default/zabbix-server
-COPY ./zabbix/zabbix_server.conf /etc/zabbix/zabbix_server.conf
-COPY ./zabbix/zabbix.conf.php /etc/zabbix/zabbix.conf.php
-
-COPY ./sql/schema.sql /root/
-COPY ./sql/images.sql /root/
-COPY ./sql/data.sql /root/
-
-COPY ./monit/monitrc /etc/monitrc
-RUN chmod 600 /etc/monitrc
-RUN mkdir /var/run/zabbix
-RUN chmod 775 /var/run/zabbix
+RUN cp /etc/zabbix/apache.conf /etc/apache2/conf-available/
+RUN ln -s /etc/apache2/conf-available/apache.conf /etc/apache2/conf-enabled/
+RUN sed -i '/DBPassword=/c\DBPassword=zabbix' /etc/zabbix/zabbix_server.conf 
 
 VOLUME ["/var/lib/mysql", "/usr/lib/zabbix/alertscripts", "/usr/lib/zabbix/externalscripts", "/etc/zabbix/zabbix_agentd.d"]
 
 ADD ./scripts/run.sh /bin/start-zabbix
 RUN chmod 755 /bin/start-zabbix
 
-EXPOSE 10051 10052 80 2812
-ENTRYPOINT ["/bin/start-zabbix"]
-CMD ["run"]
-
+EXPOSE 10051 10052 80
+CMD ["/bin/start-zabbix"]
